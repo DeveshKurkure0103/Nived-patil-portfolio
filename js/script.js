@@ -75,6 +75,7 @@ function coverflow({
   onChange,
   onActivate,
   activateAny = false,
+  interval = 0,
 }) {
   let items = [];
   let els = [];
@@ -99,6 +100,7 @@ function coverflow({
 
   const api = {
     locked: false,
+    hold: false,
 
     set(list) {
       items = list;
@@ -261,10 +263,27 @@ function coverflow({
     { passive: false }
   );
 
+  /* auto-rotate: pauses on hover, touch, hidden tab, off-screen, open dialog */
+  if (interval && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    let hover = false, seen = true, last = 0;
+    const bump = () => { last = Date.now(); };
+    explorer.addEventListener("pointerenter", (e) => { if (e.pointerType === "mouse") hover = true; });
+    explorer.addEventListener("pointerleave", () => { hover = false; });
+    explorer.addEventListener("pointerdown", bump);
+    explorer.addEventListener("wheel", bump, { passive: true });
+    explorer.addEventListener("focusin", bump);
+    new IntersectionObserver(([e]) => { seen = e.isIntersecting; }).observe(explorer);
+    setInterval(() => {
+      if (hover || !seen || api.locked || api.hold || document.hidden) return;
+      if (document.querySelector("dialog[open]") || Date.now() - last < interval) return;
+      api.move(1);
+    }, interval);
+  }
+
   return api;
 }
 
-/* ---------- Credits ---------- */
+// /* ---------- Credits */ ---------- */
 
 const lb = $("lb");
 const lbi = $("lbi");
@@ -275,6 +294,8 @@ let visible = [];
 const creditsFlow = coverflow({
   stage: $("carouselStage"),
   explorer: $("creditExplorer"),
+  activateAny: true,
+  interval: 2400,
 
   make(c) {
     const b = document.createElement("button");
@@ -360,9 +381,6 @@ function setFilter(f) {
   creditsFlow.set(visible);
 }
 
-$("creditPrev").onclick = () => creditsFlow.move(-1);
-$("creditNext").onclick = () => creditsFlow.move(1);
-
 document.querySelectorAll(".credit-filter").forEach((b) => {
   b.addEventListener("click", () => {
     document.querySelectorAll(".credit-filter").forEach((x) => {
@@ -374,6 +392,9 @@ document.querySelectorAll(".credit-filter").forEach((b) => {
 });
 
 setFilter("All");
+new IntersectionObserver(([e]) => {
+  creditsFlow.hold = !e.isIntersecting;
+}, { threshold: 0.05 }).observe($("credits"));
 
 $("lbx").onclick = () => lb.close();
 
@@ -385,46 +406,92 @@ lb.addEventListener("click", (e) => {
 
 const reelVideo = $("rv");
 const reelSection = $("reel");
-const player = document.querySelector(".player");
+const detail = $("reelDetail");
+const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+/* t / len = where the live teaser loops inside the reel (seconds).
+   Optional: add teaser: "assets/video/xyz_teaser.mp4" for a dedicated short clip. */
 const reels = [
   {
     title: "FX",
+    kind: "Showreel 01 · FX",
     subtitle: "SIMULATIONS · DESTRUCTION · EFFECTS",
     src: "assets/video/FXshowreel_2.5_v1.mp4",
     note: "FX work: simulations, destruction and effects shots, with breakdowns.",
+    text: "I am an FX Artist specializing in creating high-quality visual effects for feature films, episodic productions, and cinematic content. My expertise lies in developing physically believable and visually compelling simulations that enhance storytelling. With extensive experience in Houdini-based workflows, I create destruction, explosions, fire, smoke, debris, particles, water, atmospheric phenomena, and procedural environments. I focus on balancing artistic direction with technical problem-solving, ensuring every simulation integrates seamlessly into the broader visual narrative.",
+    tags: ["Houdini FX", "Maya", "Nuke", "Unreal Engine", "Python"],
+    t: 1, len: 6,
   },
   {
-    title: "LAYOUT",
+    title: "Layout",
+    kind: "Showreel 02 · Layout",
     subtitle: "CAMERA · STAGING · SHOT BUILDING",
     src: "assets/video/LayoutShowreel_1.0_v1.mp4",
     note: "Layout work: camera, staging and shot building for sequences.",
+    text: "I am a Layout Artist specializing in translating creative vision into compelling cinematic storytelling. My work focuses on camera composition, shot staging, animation blocking, and sequence continuity, ensuring every shot effectively supports the narrative while maintaining technical accuracy. I create layouts that establish scale, mood, and character performance while providing a solid foundation for downstream departments. I collaborate closely with directors, supervisors, animation, FX, lighting, and compositing teams to deliver visually engaging and production-ready sequences.",
+    tags: ["Maya", "Houdini", "Unreal Engine", "Nuke", "ShotGrid"],
+    t: 1, len: 6,
   },
   {
-    title: "2020",
-    subtitle: "EARLIER SHOWREEL",
+    title: "Matchmove & Bodytrack",
+    kind: "Showreel 03 · Matchmove & Bodytrack",
+    subtitle: "CAMERA TRACKING · BODY TRACKING",
     src: "assets/video/Showreel_2020.mp4",
-    note: "Earlier work from the 2020 reel.",
+    note: "Matchmove and bodytrack: camera solves, scene reconstruction and performance tracking.",
+    text: "I am a Matchmove & Body Tracking Artist specializing in camera tracking, scene reconstruction, and human performance tracking for feature films and episodic productions. My work forms the critical bridge between live-action photography and digital visual effects, ensuring that CG elements, environments, and characters integrate seamlessly into filmed footage. I create accurate camera solves, reconstruct 3D environments, and capture actor performances with precision, establishing reliable technical foundations that enable downstream departments to build convincing visual effects while preserving the authenticity of the original performance.",
+    tags: ["3DEqualizer", "Maya", "Nuke"],
+    t: 1, len: 6,
+  },
+  {
+    title: "Generative AI",
+    kind: "Showreel 04 · Generative AI",
+    subtitle: "AI IMAGERY · VIDEO · WORKFLOWS",
+    src: "assets/video/GenAI_Showreel.mp4",
+    note: "Generative AI: AI-assisted imagery, concept design and cinematic workflows.",
+    text: "I am a Generative AI Artist focused on leveraging artificial intelligence to accelerate content creation, visual development, and cinematic storytelling. By combining traditional visual effects expertise with emerging AI technologies, I create high-quality imagery, concept designs, animated sequences, and creative workflows that enhance both artistic exploration and production efficiency. I develop structured workflows that combine AI-generated content with traditional VFX techniques, enabling rapid iteration while maintaining production-quality standards.",
+    tags: ["ComfyUI", "Stable Diffusion", "Midjourney", "Runway", "Kling"],
+    t: 1, len: 6,
   },
 ];
+let curReel = 0;
+let teasersOn = true;
 
-reelVideo.muted = true;
-reelVideo.removeAttribute("src");
-reelVideo.preload = "none";
-
-player.classList.remove("rv");
-$("reelExplorer").append(player);
-player.hidden = true;
+function syncTeasers() {
+  [...$("reelStage").children].forEach((el, j) => {
+    const v = el.querySelector("video");
+    if (!v) return;
+    if (j === curReel && teasersOn && !calm && detail.hidden) v.play().catch(() => {});
+    else v.pause();
+  });
+}
 
 const reelsFlow = coverflow({
   stage: $("reelStage"),
   explorer: $("reelExplorer"),
+  activateAny: true,
+  interval: 4000,
 
   make(r, i) {
     const b = document.createElement("button");
     b.type = "button";
-    b.className = "reel-card";
+    b.className = "reel-card cf-card";
     b.setAttribute("aria-label", `${r.title} showreel`);
+
+    const v = document.createElement("video");
+    v.className = "reel-video";
+    v.muted = true;
+    v.playsInline = true;
+    v.preload = "metadata";
+    v.tabIndex = -1;
+    v.setAttribute("aria-hidden", "true");
+    v.src = r.teaser || r.src;
+    if (r.teaser) v.loop = true;
+    else {
+      v.addEventListener("loadedmetadata", () => { v.currentTime = r.t; });
+      v.addEventListener("timeupdate", () => {
+        if (v.currentTime > r.t + r.len) v.currentTime = r.t;
+      });
+    }
 
     const c = document.createElement("span");
     c.className = "reel-card-content";
@@ -434,7 +501,7 @@ const reelsFlow = coverflow({
     n.textContent = `SHOWREEL 0${i + 1}`;
 
     const t = document.createElement("span");
-    t.className = "reel-card-title";
+    t.className = "reel-card-title" + (r.title.length > 8 ? " long" : "");
     t.textContent = r.title;
 
     const s = document.createElement("span");
@@ -445,253 +512,82 @@ const reelsFlow = coverflow({
 
     const cta = document.createElement("span");
     cta.className = "reel-cta";
+    cta.innerHTML = '<span class="reel-play" aria-hidden="true">▶</span><span class="reel-hint">Open reel</span>';
 
-    const p = document.createElement("span");
-    p.className = "reel-play";
-    p.setAttribute("aria-hidden", "true");
-    p.textContent = "▶";
-
-    const h = document.createElement("span");
-    h.className = "reel-hint";
-    h.textContent = "Play showreel";
-
-    cta.append(p, h);
-    b.append(c, cta);
-
+    b.append(v, c, cta);
     return b;
   },
 
-  activateAny: true,
-
   onChange(i, r) {
-    $("reelIndex").textContent =
-      `${pad2(i + 1)} / ${pad2(reels.length)}`;
-
-    $("reelProgress").style.width =
-      ((i + 1) / reels.length) * 100 + "%";
-
+    curReel = i;
+    $("reelIndex").textContent = `${pad2(i + 1)} / ${pad2(reels.length)}`;
+    $("reelProgress").style.width = ((i + 1) / reels.length) * 100 + "%";
     $("note").textContent = r.note;
+    syncTeasers();
   },
 
-  onActivate(r, i, e, was, via) {
-    if (
-      via === "key" ||
-      was ||
-      (e.target.closest && e.target.closest(".reel-cta"))
-    ) {
-      playInPlace(r);
-    }
+  onActivate(r) {
+    openReel(r);
   },
 });
+/* ---------- Description card + full reel ---------- */
 
-/* ---------- Video player controls ---------- */
-
-const playBtn = document.createElement("button");
-
-playBtn.type = "button";
-playBtn.className = "player-play";
-playBtn.setAttribute("aria-label", "Play showreel");
-
-playBtn.innerHTML =
-  '<span class="pp-icon" aria-hidden="true">▶</span>' +
-  '<span class="pp-label"></span>';
-
-player.append(playBtn);
-
-const playLabel = playBtn.querySelector(".pp-label");
-
-const showPlay = (on) => {
-  playBtn.classList.toggle("hide", !on);
-};
-
-playBtn.onclick = () => { reelVideo.muted = false; reelVideo.play().catch(() => {}); };
-
-reelVideo.addEventListener("error", () => {
-  if (!reelVideo.getAttribute("src")) return;
-
-  const er = reelVideo.error;
-
-  playLabel.textContent =
-    "Video could not load. Check the file path and format.";
-
-  showPlay(true);
-
-  console.error(
-    "[showreel] Video error:",
-    er && er.code,
-    er && er.message,
-    reelVideo.currentSrc
+function openReel(r) {
+  $("rdKind").textContent = r.kind;
+  $("rdTitle").textContent = r.title;
+  $("rdText").textContent = r.text;
+  $("rdTags").replaceChildren(
+    ...r.tags.map((t) => {
+      const li = document.createElement("li");
+      li.textContent = t;
+      return li;
+    })
   );
-});
 
-reelVideo.addEventListener("play", () => {
-  showPlay(false);
-});
-
-reelVideo.addEventListener("pause", () => {
-  showPlay(true);
-});
-
-function loadReel(r) {
   if (reelVideo.getAttribute("src") !== r.src) {
     reelVideo.pause();
-
     reelVideo.src = r.src;
-    reelVideo.preload = "metadata";
-    reelVideo.load();
   }
 
-  playLabel.textContent = `${r.title} · Play showreel`;
-  showPlay(reelVideo.paused);
-}
+  const wasHidden = detail.hidden;
+  detail.hidden = false;
+  reelsFlow.hold = true;
+  syncTeasers();
 
-const AUTOPLAY_ON_CLICK = true;
-
-function playReel() {
   reelVideo.muted = false;
-
-  reelVideo.play().catch((err) => {
-    console.warn(
-      "[showreel] Playback request rejected:",
-      err && err.name,
-      err && err.message
-    );
-
-    // Fallback: try muted playback if sound-enabled playback is rejected.
+  reelVideo.play().catch(() => {
     reelVideo.muted = true;
-
-    reelVideo.play().catch((mutedErr) => {
-      console.warn(
-        "[showreel] Muted playback also failed:",
-        mutedErr
-      );
-
-      playLabel.textContent =
-        "Press play to start the showreel";
-
-      showPlay(true);
-    });
+    reelVideo.play().catch(() => {});
   });
+
+  if (wasHidden) detail.scrollIntoView({ behavior: "smooth", block: "center" });
 }
-
-/* ---------- In-place showreel player ---------- */
-
-const reelEx = $("reelExplorer");
-
-let explorerH = 0;
-let closeT = 0;
-let openT = 0;
-
-const targetH = () =>
-  Math.max(
-    explorerH,
-    Math.min(
-      reelEx.clientWidth * 9 / 16,
-      window.innerHeight * 0.82
-    )
-  );
-
-const closeBtn = document.createElement("button");
-
-closeBtn.type = "button";
-closeBtn.className = "player-close";
-closeBtn.setAttribute("aria-label", "Close video");
-closeBtn.textContent = "✕ Close";
-closeBtn.onclick = () => closeReel();
-
-player.append(closeBtn);
-
-
-function playInPlace(r) {
-  if (reelsFlow.locked) return;
-
-  reelsFlow.locked = true;
-  clearTimeout(closeT);
-
-  explorerH = reelEx.offsetHeight;
-
-  player.hidden = false;
-  reelEx.classList.add("dimming");
-
-  // Load the chosen reel, but don't autoplay yet.
-  loadReel(r);
-  showPlay(true);
-
-  reelEx.style.height = explorerH + "px";
-  void reelEx.offsetHeight;
-
-  reelEx.classList.add("playing");
-  reelEx.style.height = targetH() + "px";
-
-  requestAnimationFrame(() => {
-    player.classList.add("on");
-  });
-}
-
 
 function closeReel() {
-  if (!reelsFlow.locked) return;
-
-  clearTimeout(openT);
-  clearTimeout(closeT);
-
+  if (detail.hidden) return;
   reelVideo.pause();
-
-  player.classList.remove("on");
-
-  reelEx.style.height = explorerH + "px";
-
-  closeT = setTimeout(() => {
-    player.hidden = true;
-
-    reelEx.classList.remove("playing", "dimming");
-
-    reelsFlow.locked = false;
-
-    setTimeout(() => {
-      if (!reelsFlow.locked) {
-        reelEx.style.height = "";
-      }
-    }, 650);
-
-    const a = $("reelStage").querySelector(".cf.active");
-
-    if (a) {
-      a.focus({ preventScroll: true });
-    }
-  }, 450);
+  detail.hidden = true;
+  reelsFlow.hold = false;
+  syncTeasers();
 }
 
-window.addEventListener("resize", () => {
-  if (reelEx.classList.contains("playing")) {
-    reelEx.style.height = targetH() + "px";
-  }
+$("rdClose").onclick = closeReel;
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeReel();
 });
 
-document.querySelector(
-  ".reel-caption-row span:last-child"
-).textContent =
-  "Press ▶ on a reel to play it · arrows or swipe to browse";
+document.querySelector(".reel-caption-row span:last-child").textContent =
+  "Plays live on each card · click to open the full reel";
 
 reelsFlow.set(reels);
 
-$("reelPrev").onclick = () => reelsFlow.move(-1);
-$("reelNext").onclick = () => reelsFlow.move(1);
-
-reelVideo.addEventListener("play", () => {
-  player.classList.add("playing");
-});
-
-reelVideo.addEventListener("pause", () => {
-  player.classList.remove("playing");
-});
-
-// Pause the video when the visitor scrolls away from the reel section.
+// Pause everything when the visitor scrolls away from the reel section.
 new IntersectionObserver(
   ([e]) => {
-    if (!e.isIntersecting) {
-      reelVideo.pause();
-    }
+    teasersOn = e.isIntersecting;
+    if (!e.isIntersecting) reelVideo.pause();
+    syncTeasers();
   },
   { threshold: 0.05 }
 ).observe(reelSection);
