@@ -214,7 +214,7 @@ const reelsFlow = coverflow({
     $("reelIndex").textContent = `${pad2(i + 1)} / ${pad2(reels.length)}`;
     $("reelProgress").style.width = ((i + 1) / reels.length) * 100 + "%";
     $("note").textContent = r.note;
-    if (!player.hidden) loadReel(r); // arrows swap the video only once a reel is open
+    if (!player.hidden) { loadReel(r); if (AUTOPLAY_ON_CLICK) playReel(); } // prev/next while a reel is open
   },
   onActivate(r) { openReel(r); },
 });
@@ -234,18 +234,55 @@ function loadReel(r) {
     reelVideo.pause(); reelVideo.src = r.src; reelVideo.preload = "metadata"; reelVideo.load();
   }
   playLabel.textContent = `${r.title} · Play showreel`;
+  cinemaTitle.textContent = `Showreel 0${reels.indexOf(r) + 1} · ${r.title}`;
   showPlay(reelVideo.paused);
 }
-const AUTOPLAY_ON_CLICK = true; // set to false if you want the visitor to press the centre play button instead
+const AUTOPLAY_ON_CLICK = true; // false = visitor presses the centre play button instead
+function playReel() {
+  reelVideo.muted = false;
+  // if the browser refuses sound, retry muted; if that fails too, the centre play button stays visible
+  reelVideo.play().catch(() => { reelVideo.muted = true; reelVideo.play().catch(() => showPlay(true)); });
+}
+// Full-screen "cinema" player: covers the whole viewport on every device
+// (on portrait phones it is turned sideways so the landscape video fills the screen).
+const bar = document.createElement("div");
+bar.className = "cinema-bar";
+bar.innerHTML =
+  '<button type="button" data-a="prev" aria-label="Previous reel">←</button>' +
+  '<span class="cinema-title"></span>' +
+  '<button type="button" data-a="next" aria-label="Next reel">→</button>' +
+  '<button type="button" data-a="fit" aria-label="Fit or fill the screen">Fill</button>' +
+  '<button type="button" data-a="close" aria-label="Close video">✕</button>';
+player.append(bar);
+const cinemaTitle = bar.querySelector(".cinema-title");
+bar.addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  const a = b.dataset.a;
+  if (a === "close") closeReel();
+  else if (a === "prev") reelsFlow.move(-1);
+  else if (a === "next") reelsFlow.move(1);
+  else if (a === "fit") b.textContent = player.classList.toggle("fill") ? "Fit" : "Fill";
+});
+let idleT;
+const wake = () => {
+  player.classList.remove("idle"); clearTimeout(idleT);
+  idleT = setTimeout(() => { if (!reelVideo.paused) player.classList.add("idle"); }, 2500);
+};
+["pointermove", "pointerdown", "keydown"].forEach((ev) => player.addEventListener(ev, wake));
+reelVideo.addEventListener("pause", wake);
 function openReel(r) {
-  player.hidden = false; player.classList.add("show");
-  loadReel(r);
-  player.scrollIntoView({ behavior: "smooth", block: "center" });
-  if (AUTOPLAY_ON_CLICK) {
-    reelVideo.muted = false;
-    // if the browser refuses sound, retry muted; if that fails too, the centre play button stays visible
-    reelVideo.play().catch(() => { reelVideo.muted = true; reelVideo.play().catch(() => showPlay(true)); });
-  }
+  player.hidden = false;
+  player.classList.add("show", "cinema");
+  document.documentElement.classList.add("cinema-open");
+  loadReel(r); wake();
+  if (AUTOPLAY_ON_CLICK) playReel();
+}
+function closeReel() {
+  reelVideo.pause();
+  player.classList.remove("cinema", "idle");
+  player.hidden = true;
+  document.documentElement.classList.remove("cinema-open");
+  const a = $("reelStage").querySelector(".cf.active"); if (a) a.focus({ preventScroll: true });
 }
 document.querySelector(".reel-caption-row span:last-child").textContent = "Click a reel to open it · arrows or swipe to browse";
 reelsFlow.set(reels);
@@ -260,6 +297,7 @@ if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
   let raf = 0;
   const tilt = () => {
     raf = 0;
+    if (player.classList.contains("cinema")) return;
     const r = player.getBoundingClientRect();
     const p = Math.min(1, Math.max(0, (r.top - innerHeight * 0.3) / (innerHeight * 0.7)));
     player.style.transform = `perspective(1400px) rotateX(${p * 9}deg) scale(${1 - p * 0.06})`;
@@ -274,6 +312,8 @@ new IntersectionObserver(([e]) => { if (!e.isIntersecting) reelVideo.pause(); },
 // arrow keys control whichever carousel is on screen
 const inView = (el) => { const r = el.getBoundingClientRect(); return r.top < innerHeight * 0.7 && r.bottom > innerHeight * 0.3; };
 document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && player.classList.contains("cinema")) { closeReel(); return; }
+  if (player.classList.contains("cinema")) return;
   if (lb.open || /INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
   const d = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0;
   if (!d) return;

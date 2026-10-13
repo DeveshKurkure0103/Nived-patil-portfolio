@@ -1371,3 +1371,38 @@ dialog[open] { animation: lbin .35s ease; }
   .reel-prev, .carousel-prev { left: calc(50% - 52px); }
   .reel-next, .carousel-next { right: calc(50% - 52px); }
 }
+
+/* ===== v5: full-screen cinema player ===== */
+html.cinema-open, html.cinema-open body { overflow: hidden; }
+.player.cinema {
+  position: fixed; inset: 0; z-index: 90; width: auto; height: auto;
+  margin: 0 !important; border: 0; aspect-ratio: auto; background: #000;
+  transform: none !important; animation: cinemaIn .35s ease;
+}
+@keyframes cinemaIn { from { opacity: 0; } }
+.player.cinema video { width: 100%; height: 100%; object-fit: contain; }
+.player.cinema.fill video { object-fit: cover; }
+
+/* portrait phones: turn the player sideways so the landscape video uses the whole screen */
+@media (orientation: portrait) and (pointer: coarse) {
+  .player.cinema {
+    inset: auto; top: 0; left: 100%;
+    width: 100vh; width: 100dvh; height: 100vw;
+    transform-origin: 0 0; transform: rotate(90deg) !important;
+  }
+}
+
+.cinema-bar { display: none; }
+.player.cinema .cinema-bar {
+  display: flex; position: absolute; top: 0; left: 0; right: 0; z-index: 5;
+  align-items: center; gap: .6rem; padding: max(.8rem, env(safe-area-inset-top)) 1rem 2.2rem;
+  background: linear-gradient(rgba(0, 0, 0, .75), transparent); transition: opacity .4s;
+}
+.cinema-title { flex: 1; text-align: center; font-size: .72rem; letter-spacing: .18em; text-transform: uppercase; color: var(--bone); }
+.cinema-bar button {
+  min-width: 42px; height: 42px; padding: 0 .9rem; border: 1px solid var(--line); border-radius: 999px;
+  background: rgba(11, 10, 8, .7); color: var(--gold); font: inherit; font-size: .85rem; cursor: pointer;
+  transition: background .25s, color .25s;
+}
+.cinema-bar button:hover { background: var(--gold); color: var(--ink); }
+.player.idle .cinema-bar { opacity: 0; pointer-events: none; }
