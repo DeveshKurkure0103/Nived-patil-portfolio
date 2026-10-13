@@ -848,3 +848,34 @@ goTop.addEventListener("click", () => {
     behavior: "smooth",
   });
 });
+
+/* ---------- Hero sound toggle ---------- */
+
+(() => {
+  const intro = $("intro");
+  const toggle = $("soundToggle");
+  if (!intro || !toggle) return;
+
+  const iconEl = toggle.querySelector(".icon");
+  const labelEl = toggle.querySelector(".label");
+  let soundOn = false; // intro starts muted
+
+  const updateUI = () => {
+    iconEl.textContent = soundOn ? "🔊" : "🔇";
+    labelEl.textContent = soundOn ? "Sound on" : "Sound off";
+    toggle.setAttribute(
+      "aria-label",
+      soundOn ? "Turn sound off" : "Turn sound on"
+    );
+  };
+
+  toggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    soundOn = !soundOn;
+    intro.muted = !soundOn;
+    if (soundOn && !intro.paused && !intro.ended) intro.volume = 1;
+    updateUI();
+  });
+
+  updateUI();
+})();

@@ -1753,3 +1753,66 @@ pointer-events: none;}
   .reel-video { display: none; }
   .hero video { display: none; }
 }
+
+/* ===== v10: hero sound toggle ===== */
+.sound-toggle {
+  position: absolute;
+  bottom: 27.2rem;
+  right: 2.5rem;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .7rem 1.4rem;
+  border: 1px solid rgba(214, 180, 110, .5);
+  border-radius: 999px;
+  background: rgba(11, 10, 8, .7);
+  backdrop-filter: blur(8px);
+  color: var(--bone);
+  font: 400 .85rem/1 var(--body);
+  letter-spacing: .08em;
+  cursor: pointer;
+  /* opacity: 0; */
+  /* pointer-events: none; */
+  user-select: none;
+  transition: background .3s, color .3s, border-color .3s, opacity .3s, transform .2s;
+}
+.hero.reveal .sound-toggle {
+  opacity: 1;
+  pointer-events: auto;
+}
+.sound-toggle:hover {
+  background: var(--gold);
+  color: var(--ink);
+  border-color: var(--gold);
+  transform: scale(1.04);
+}
+.sound-toggle:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+.sound-toggle .icon {
+  font-size: 1.1rem;
+  line-height: 1;
+  width: 1.2rem;
+  text-align: center;
+}
+.sound-toggle .label {
+  font-size: .78rem;
+  text-transform: uppercase;
+}
+/* hide once the intro video is done */
+.hero.complete .sound-toggle {
+  opacity: 0;
+  pointer-events: none;
+}
+@media (max-width: 700px) {
+  .sound-toggle {
+    bottom: 1.2rem;
+    right: 1.2rem;
+    padding: .55rem 1rem;
+  }
+  .sound-toggle .label {
+    font-size: .68rem;
+  }
+}
