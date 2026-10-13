@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nived Patil | VFX Layout & FX Specialist</title>
+  <meta name="description"
+    content="Nived Patil is a VFX Layout and FX specialist. Showreels and credits on Mortal Kombat, Thor: Love and Thunder, Dune: Part Two, House of the Dragon and more.">
+  <meta property="og:title" content="Nived Patil | VFX Layout & FX Specialist">
+  <meta property="og:image" content="assets/LOGO%202026%20copy_edited.png">
+  <link rel="icon" href="assets/LOGO%202026%20copy_edited.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="css/style.css">   
+  <link
+    href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,500;12..96,700&family=Instrument+Sans:wght@400;500&display=swap"
+    rel="stylesheet">
+</head>
+<body>
+  <div id="pre"><img src="assets/LOGO%202026%20copy_edited.png" alt=""></div>
+  <nav id="nav">
+    <a href="#top" class="mark">NIVED PATIL</a>
+    <button id="burger" aria-label="Menu" aria-expanded="false">Menu</button>
+    <ul id="menu">
+      <li><a href="#reel">Showreels</a></li>
+      <li><a href="#credits">Credits</a></li>
+      <li><a href="#about">About</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+  </nav>
+  <header class="hero" id="top">
+    <video id="intro" autoplay muted playsinline preload="auto">
+      <source src="assets/video/hero_intro.mp4" type="video/mp4">
+    </video>
+    <i class="corner c1"></i><i class="corner c2"></i><i class="corner c3"></i><i class="corner c4"></i>
+    <div class="hero-in">
+      <img src="assets/LOGO%202026%20copy_edited.png" alt="Nived Patil, VFX Layout and FX Specialist">
+      <p>I build the space where stories unfold: camera, layout and FX for film and series.</p>
+      <div class="btns"><a class="btn fill" href="#reel">Watch showreels</a><a class="btn" href="#contact">Get in
+          touch</a></div>
+    </div>
+    <a class="scroll-down" href="#reel" aria-label="Scroll down to showreels">Scroll down <span
+        aria-hidden="true">↓</span></a>
+    <div class="tc" id="tc">00:00:00:00</div>
+  </header>
+  <section id="reel">
+    <div class="wrap">
+      <div class="reel-top">
+        <h2 class="rv">Showreels</h2>
+        <p class="reel-kicker">SELECT A REEL · EXPLORE THE WORK</p>
+      </div>
+      <div class="reel-explorer rv" id="reelExplorer" aria-label="Interactive showreel carousel">
+        <button class="reel-arrow reel-prev" id="reelPrev" type="button" aria-label="Previous showreel">&#8592;</button>
+        <div class="reel-stage" id="reelStage"></div>
+        <button class="reel-arrow reel-next" id="reelNext" type="button" aria-label="Next showreel">&#8594;</button>
+      </div>
+      <div class="reel-carousel-caption">
+        <div class="reel-progress"><span id="reelProgress"></span></div>
+        <div class="reel-caption-row"><span id="reelIndex">01 / 03</span><span>Use arrows or swipe to explore</span>
+        </div>
+      </div>
+      <div class="player rv"><video id="rv" controls muted playsinline preload="metadata"
+          src="assets/video/FXshowreel_2.5_v1.mp4"></video></div>
+      <p class="reel-note" id="note">FX work: simulations, destruction and effects shots, with breakdowns.</p>
+    </div>
+  </section>
+  <section class="credits" id="credits">
+    <div class="wrap credits-wrap">
+      <div class="credits-heading">
+        <div>
+          <p class="eyebrow rv">SELECTED FILMOGRAPHY · 2026</p>
+          <h2 class="rv">Credits<span class="gold-dot">.</span></h2>
+          <p class="credits-intro rv">Worlds, stories and visual effects. Explore the films and series one title at a
+            time.</p>
+        </div>
+        <div class="credits-count rv"><strong id="creditCount">27</strong><span>titles</span></div>
+      </div>
+      <div class="credits-tools rv">
+        <div class="credit-filters" role="group" aria-label="Filter credits">
+          <button class="credit-filter active" type="button" data-filter="All">All credits</button><button
+            class="credit-filter" type="button" data-filter="Film">Films</button><button class="credit-filter"
+            type="button" data-filter="Series">Series</button>
+        </div>
+      </div>
+      <div class="credit-explorer rv" id="creditExplorer" aria-label="Interactive film credits">
+        <button class="carousel-arrow carousel-prev" id="creditPrev" type="button"
+          aria-label="Previous credit">←</button>
+        <div class="carousel-stage" id="carouselStage" aria-live="polite"></div><button
+          class="carousel-arrow carousel-next" id="creditNext" type="button" aria-label="Next credit">→</button>
+      </div>
+      <div class="credit-caption rv">
+        <div class="credit-progress"><span id="creditProgress"></span></div>
+        <div class="credit-caption-row"><span class="credit-index" id="creditIndex">01 / 27</span><span
+            class="credit-hint">Swipe or use the arrows to explore</span></div>
+      </div>
+      <div class="credit-empty" id="creditEmpty" hidden>No matching credits. Try another title or filter.</div>
+    </div>
+  </section>
+  <section id="about">
+    <div class="wrap about">
+      <div>
+        <h2 class="rv">Layout is where a shot is decided.</h2>
+        <p class="rv">I'm Nived Patil, a VFX Layout and FX artist. I work out where the camera sits, how a sequence is
+          staged and how the effects fit into it, so the shot reads clearly before final lighting and comp.</p>
+        <p class="rv">I work with pipelines from previs through to final delivery, and I like to hand over clean,
+          well-organised scenes that other departments can pick up immediately.</p>
+      </div>
+      <div class="skills rv">
+        <div><b>Layout</b><i>Camera, staging, shot assembly</i></div>
+        <div><b>FX</b><i>Simulation, destruction, atmospherics</i></div>
+        <div><b>Pipeline</b><i>Scene setup and handover</i></div>
+        <div><b>Software</b><i>Edit this list with your tools</i></div>
+      </div>
+    </div>
+  </section>
+  <section class="contact" id="contact">
+    <div class="wrap">
+      <h2 class="rv">Let's work together.</h2>
+      <a class="mail" href="mailto:your@email.com">patilnived@gmail.com</a>
+      <div class="links">
+        <a href="https://www.linkedin.com/in/nivedpatil/" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="https://www.imdb.com/name/nm9988867/" target="_blank" rel="noopener">IMDb</a>
+        <!-- <a href="https://vimeo.com/" target="_blank" rel="noopener">Vimeo</a> -->
+      </div>
+    </div>
+  </section>
+  <button id="goTop" type="button" aria-label="Back to top" title="Back to top">↑</button>
+  <footer>© 2026 Nived Patil. All film titles and posters belong to their respective owners.</footer>
+  <dialog id="lb"><button id="lbx">Close</button>
+    <figure><img id="lbi" alt="">
+      <figcaption id="lbc"></figcaption>
+    </figure>
+  </dialog>
+  <script src="js/script.js" defer></script>
+</body>
+</html>
