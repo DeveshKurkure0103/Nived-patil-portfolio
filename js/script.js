@@ -56,9 +56,7 @@ function loadPoster(img, c, onFail) {
     if (n < posterExts.length) {
       img.src = `assets/poster/${encodeURI(c[2])}${posterExts[n++]}`;
     } else {
-      console.warn(
-        `Poster not found for "${c[0]}": assets/poster/${c[2]}`
-      );
+      console.warn(`Poster not found for "${c[0]}": assets/poster/${c[2]}`);
       onFail();
     }
   };
@@ -81,9 +79,24 @@ function coverflow({
   let els = [];
   let active = 0;
   let sx = null;
-  let downX = 0;
   let moved = false;
   let wheelLock = 0;
+  let lastActivate = 0;
+
+  // Find the card under a screen point from the cards' own on-screen boxes,
+  // front-most first. This avoids relying on browser hit-testing of 3D-rotated elements.
+  const pick = (x, y) => {
+    const order = els
+      .map((el, i) => i)
+      .filter((i) => els[i].dataset.a !== "x" && getComputedStyle(els[i]).visibility !== "hidden")
+      .sort((a, b) => Number(els[b].style.zIndex) - Number(els[a].style.zIndex));
+
+    for (const i of order) {
+      const r = els[i].getBoundingClientRect();
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return i;
+    }
+    return -1;
+  };
 
   const activate = (i, e, via) => {
     if (api.locked || i < 0 || !items[i]) return;
@@ -114,10 +127,16 @@ function coverflow({
         const g = document.createElement("span");
         g.className = "glare";
         g.setAttribute("aria-hidden", "true");
-
         el.append(g);
+
+        // Native click is the reliable way to activate a 3D-transformed card.
+        // `moved` is true after a swipe/drag, so swipes never open a poster.
         el.onclick = (e) => {
-          if (e.detail === 0) activate(i, e, "key");
+          if (e.detail === 0) return activate(i, e, "key"); // keyboard Enter / Space
+          // mouse/touch: normally handled in pointerup below; this is a fallback
+          if (moved || Date.now() - lastActivate < 400) return;
+          lastActivate = Date.now();
+          activate(i, e, "pointer");
         };
 
         stage.append(el);
@@ -179,8 +198,7 @@ function coverflow({
 
   explorer.addEventListener("pointerdown", (e) => {
     if (api.locked) return;
-
-    sx = downX = e.clientX;
+    sx = e.clientX;
     moved = false;
   });
 
@@ -213,19 +231,20 @@ function coverflow({
     sx = null;
 
     if (Math.abs(d) > 50) {
+      moved = true;
       api.move(d < 0 ? 1 : -1);
-    } else if (Math.abs(d) <= 10) {
-      const card =
-        e.target.closest && e.target.closest(".cf");
-
-      if (card) {
-        activate(els.indexOf(card), e, "pointer");
+    } else if (Math.abs(d) <= 10 && !moved && !api.locked) {
+      const i = pick(e.clientX, e.clientY);
+      if (i >= 0) {
+        lastActivate = Date.now();
+        activate(i, e, "pointer");
       }
     }
 
+    // Keep the flag alive just long enough to swallow the trailing click.
     setTimeout(() => {
       moved = false;
-    }, 0);
+    }, 50);
   });
 
   explorer.addEventListener("pointercancel", () => {
@@ -246,10 +265,7 @@ function coverflow({
     (e) => {
       if (api.locked) return;
 
-      if (
-        Math.abs(e.deltaX) < Math.abs(e.deltaY) ||
-        Math.abs(e.deltaX) < 30
-      ) {
+      if (Math.abs(e.deltaX) < Math.abs(e.deltaY) || Math.abs(e.deltaX) < 30) {
         return;
       }
 
@@ -265,14 +281,24 @@ function coverflow({
 
   /* auto-rotate: pauses on hover, touch, hidden tab, off-screen, open dialog */
   if (interval && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    let hover = false, seen = true, last = 0;
-    const bump = () => { last = Date.now(); };
-    explorer.addEventListener("pointerenter", (e) => { if (e.pointerType === "mouse") hover = true; });
-    explorer.addEventListener("pointerleave", () => { hover = false; });
+    let hover = false,
+      seen = true,
+      last = 0;
+    const bump = () => {
+      last = Date.now();
+    };
+    explorer.addEventListener("pointerenter", (e) => {
+      if (e.pointerType === "mouse") hover = true;
+    });
+    explorer.addEventListener("pointerleave", () => {
+      hover = false;
+    });
     explorer.addEventListener("pointerdown", bump);
     explorer.addEventListener("wheel", bump, { passive: true });
     explorer.addEventListener("focusin", bump);
-    new IntersectionObserver(([e]) => { seen = e.isIntersecting; }).observe(explorer);
+    new IntersectionObserver(([e]) => {
+      seen = e.isIntersecting;
+    }).observe(explorer);
     setInterval(() => {
       if (hover || !seen || api.locked || api.hold || document.hidden) return;
       if (document.querySelector("dialog[open]") || Date.now() - last < interval) return;
@@ -283,7 +309,7 @@ function coverflow({
   return api;
 }
 
-// /* ---------- Credits */ ---------- */
+/* ---------- Credits ---------- */
 
 const lb = $("lb");
 const lbi = $("lbi");
@@ -331,11 +357,8 @@ const creditsFlow = coverflow({
   onChange(i) {
     const n = visible.length;
 
-    $("creditIndex").textContent =
-      `${pad2(i + 1)} / ${pad2(n)}`;
-
-    $("creditProgress").style.width =
-      n ? ((i + 1) / n) * 100 + "%" : "0%";
+    $("creditIndex").textContent = `${pad2(i + 1)} / ${pad2(n)}`;
+    $("creditProgress").style.width = n ? ((i + 1) / n) * 100 + "%" : "0%";
   },
 
   onActivate(c) {
@@ -349,7 +372,6 @@ const creditsFlow = coverflow({
 
     const cat = document.createElement("p");
     cat.textContent = c[1];
-
     cat.style.cssText =
       "color:var(--gold);font-size:.8rem;letter-spacing:.14em;margin-top:.45rem;text-transform:uppercase";
 
@@ -357,19 +379,16 @@ const creditsFlow = coverflow({
     a.className = "imdb-link";
     a.target = "_blank";
     a.rel = "noopener noreferrer";
-    a.href =
-      `https://www.imdb.com/find/?q=${encodeURIComponent(c[0])}`;
+    a.href = `https://www.imdb.com/find/?q=${encodeURIComponent(c[0])}`;
     a.textContent = `Find ${c[0]} on IMDb`;
 
     lbc.append(cap, cat, a);
-    lb.showModal();
+    if (!lb.open) lb.showModal();
   },
 });
 
 function setFilter(f) {
-  visible = credits.filter(
-    (c) => f === "All" || c[1] === f
-  );
+  visible = credits.filter((c) => f === "All" || c[1] === f);
 
   const none = !visible.length;
 
@@ -392,9 +411,13 @@ document.querySelectorAll(".credit-filter").forEach((b) => {
 });
 
 setFilter("All");
-new IntersectionObserver(([e]) => {
-  creditsFlow.hold = !e.isIntersecting;
-}, { threshold: 0.05 }).observe($("credits"));
+
+new IntersectionObserver(
+  ([e]) => {
+    creditsFlow.hold = !e.isIntersecting;
+  },
+  { threshold: 0.05 }
+).observe($("credits"));
 
 $("lbx").onclick = () => lb.close();
 
@@ -487,7 +510,9 @@ const reelsFlow = coverflow({
     v.src = r.teaser || r.src;
     if (r.teaser) v.loop = true;
     else {
-      v.addEventListener("loadedmetadata", () => { v.currentTime = r.t; });
+      v.addEventListener("loadedmetadata", () => {
+        v.currentTime = r.t;
+      });
       v.addEventListener("timeupdate", () => {
         if (v.currentTime > r.t + r.len) v.currentTime = r.t;
       });
@@ -512,7 +537,8 @@ const reelsFlow = coverflow({
 
     const cta = document.createElement("span");
     cta.className = "reel-cta";
-    cta.innerHTML = '<span class="reel-play" aria-hidden="true">▶</span><span class="reel-hint">Open reel</span>';
+    cta.innerHTML =
+      '<span class="reel-play" aria-hidden="true">▶</span><span class="reel-hint">Open reel</span>';
 
     b.append(v, c, cta);
     return b;
@@ -530,6 +556,7 @@ const reelsFlow = coverflow({
     openReel(r);
   },
 });
+
 /* ---------- Description card + full reel ---------- */
 
 function openReel(r) {
@@ -596,33 +623,13 @@ new IntersectionObserver(
 
 const inView = (el) => {
   const r = el.getBoundingClientRect();
-
-  return (
-    r.top < window.innerHeight * 0.7 &&
-    r.bottom > window.innerHeight * 0.3
-  );
+  return r.top < window.innerHeight * 0.7 && r.bottom > window.innerHeight * 0.3;
 };
 
 document.addEventListener("keydown", (e) => {
-  if (reelsFlow.locked) {
-    if (e.key === "Escape") closeReel();
-    return;
-  }
+  if (lb.open || /INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
 
-  if (
-    lb.open ||
-    /INPUT|TEXTAREA/.test(document.activeElement.tagName)
-  ) {
-    return;
-  }
-
-  const d =
-    e.key === "ArrowLeft"
-      ? -1
-      : e.key === "ArrowRight"
-        ? 1
-        : 0;
-
+  const d = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0;
   if (!d) return;
 
   if (inView(reelSection)) {
@@ -656,47 +663,60 @@ window.addEventListener(
   { passive: true }
 );
 
-burger.onclick = () => {
-  const o = menu.classList.toggle("open");
-
-  burger.setAttribute("aria-expanded", o);
-  burger.textContent = o ? "Close" : "Menu";
+/* Mobile menu */
+const setMenu = (open) => {
+  menu.classList.toggle("open", open);
+  burger.setAttribute("aria-expanded", open);
+  burger.textContent = open ? "Close" : "Menu";
+  document.documentElement.style.overflow = open ? "hidden" : "";
 };
 
+burger.onclick = () => setMenu(!menu.classList.contains("open"));
+
 menu.querySelectorAll("a").forEach((a) => {
-  a.onclick = () => {
-    menu.classList.remove("open");
-    burger.textContent = "Menu";
-  };
+  a.onclick = () => setMenu(false);
 });
 
+addEventListener("keydown", (e) => {
+  if (e.key === "Escape") setMenu(false);
+});
+
+addEventListener("resize", () => {
+  if (innerWidth > 800) setMenu(false);
+});
+
+/* Scroll spy */
 const links = [...menu.querySelectorAll("a")];
 
-const spy = new IntersectionObserver((es) => {
-  es.forEach((e) => {
-    if (e.isIntersecting) {
-      links.forEach((l) => {
-        l.classList.toggle(
-          "on",
-          l.getAttribute("href") === "#" + e.target.id
-        );
-      });
-    }
-  });
-}, { rootMargin: "-45% 0px -50%" });
+const spy = new IntersectionObserver(
+  (es) => {
+    es.forEach((e) => {
+      if (e.isIntersecting) {
+        links.forEach((l) => {
+          l.classList.toggle("on", l.getAttribute("href") === "#" + e.target.id);
+        });
+      }
+    });
+  },
+  { rootMargin: "-45% 0px -50%" }
+);
 
 document.querySelectorAll("section").forEach((s) => {
   spy.observe(s);
 });
 
-const io = new IntersectionObserver((es) => {
-  es.forEach((e) => {
-    if (e.isIntersecting) {
-      e.target.classList.add("show");
-      io.unobserve(e.target);
-    }
-  });
-}, { threshold: 0.12 });
+/* Reveal on scroll */
+const io = new IntersectionObserver(
+  (es) => {
+    es.forEach((e) => {
+      if (e.isIntersecting) {
+        e.target.classList.add("show");
+        io.unobserve(e.target);
+      }
+    });
+  },
+  { threshold: 0.12 }
+);
 
 document.querySelectorAll(".rv").forEach((el) => {
   io.observe(el);
@@ -734,12 +754,7 @@ const reveal = () => {
 
 intro.addEventListener("ended", reveal, { once: true });
 intro.addEventListener("error", reveal, { once: true });
-
-intro.querySelector("source").addEventListener(
-  "error",
-  reveal,
-  { once: true }
-);
+intro.querySelector("source").addEventListener("error", reveal, { once: true });
 
 setTimeout(() => {
   if (!shown && intro.paused && intro.currentTime === 0) {
@@ -761,9 +776,7 @@ if (matchMedia("(max-width: 700px)").matches) {
   intro.before(introBg);
 
   intro.addEventListener("timeupdate", () => {
-    if (
-      Math.abs(introBg.currentTime - intro.currentTime) > 0.3
-    ) {
+    if (Math.abs(introBg.currentTime - intro.currentTime) > 0.3) {
       introBg.currentTime = intro.currentTime;
     }
   });
@@ -781,20 +794,14 @@ if (matchMedia("(max-width: 700px)").matches) {
 if (matchMedia("(max-width: 700px)").matches) {
   fetch("assets/video/hero_intro_mobile.mp4", { method: "HEAD" })
     .then((r) => {
-      if (
-        r.ok &&
-        /video/.test(r.headers.get("content-type") || "") &&
-        !shown
-      ) {
-        intro.querySelector("source").src =
-          "assets/video/hero_intro_mobile.mp4";
+      if (r.ok && /video/.test(r.headers.get("content-type") || "") && !shown) {
+        intro.querySelector("source").src = "assets/video/hero_intro_mobile.mp4";
 
         intro.load();
         intro.play().catch(() => {});
 
         if (introBg) {
-          introBg.querySelector("source").src =
-            "assets/video/hero_intro_mobile.mp4";
+          introBg.querySelector("source").src = "assets/video/hero_intro_mobile.mp4";
 
           introBg.load();
           introBg.play().catch(() => {});
@@ -843,39 +850,44 @@ window.addEventListener("scroll", updateGoTop, { passive: true });
 updateGoTop();
 
 goTop.addEventListener("click", () => {
-  window.scrollTo({
-    top: 0,
-    behavior: "smooth",
-  });
+  window.scrollTo({ top: 0, behavior: "smooth" });
 });
 
 /* ---------- Hero sound toggle ---------- */
+/* Browsers block autoplay with sound, so the intro starts muted and this
+   pill gives the visitor an obvious, animated way to unmute (a user gesture). */
 
 (() => {
-  const intro = $("intro");
   const toggle = $("soundToggle");
   if (!intro || !toggle) return;
 
-  const iconEl = toggle.querySelector(".icon");
-  const labelEl = toggle.querySelector(".label");
-  let soundOn = false; // intro starts muted
+  const label = toggle.querySelector(".label");
+  const hint = toggle.querySelector(".hint");
 
-  const updateUI = () => {
-    iconEl.textContent = soundOn ? "🔊" : "🔇";
-    labelEl.textContent = soundOn ? "Sound on" : "Sound off";
-    toggle.setAttribute(
-      "aria-label",
-      soundOn ? "Turn sound off" : "Turn sound on"
-    );
+  const setSound = (on) => {
+    intro.muted = !on;
+
+    if (on) {
+      intro.volume = 1;
+      if (intro.paused && !intro.ended) intro.play().catch(() => {});
+    }
+
+    toggle.classList.toggle("is-on", on);
+    toggle.classList.toggle("is-muted", !on);
+    toggle.setAttribute("aria-pressed", on);
+    toggle.setAttribute("aria-label", on ? "Turn sound off" : "Turn sound on");
+
+    if (label) label.textContent = on ? "Sound on" : "Sound off";
+    if (hint) hint.textContent = on ? "Tap to mute" : "Tap to unmute";
   };
 
   toggle.addEventListener("click", (e) => {
     e.stopPropagation();
-    soundOn = !soundOn;
-    intro.muted = !soundOn;
-    if (soundOn && !intro.paused && !intro.ended) intro.volume = 1;
-    updateUI();
+    setSound(intro.muted);
   });
 
-  updateUI();
+  // tapping the video itself also toggles sound
+  intro.addEventListener("click", () => setSound(intro.muted));
+
+  setSound(false);
 })();
